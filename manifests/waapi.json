@@ -1,0 +1,16 @@
+{
+  "id": "waapi",
+  "purpose": "Native Web Animations API — runtime-controlled animation without a dependency.",
+  "triggers": ["runtime playback control", "pause/seek without library", "no-dependency js animation"],
+  "exclusions": ["declarative CSS suffices", "complex orchestration"],
+  "required_shared_modules": ["GOV-A11Y", "GOV-OWNERSHIP", "GOV-PERF", "GOV-READINESS", "GOV-CONFIDENCE", "GOV-DEPTH"],
+  "canonical_skill": "skills/animation-router/SKILL.md",
+  "modules": [
+    {"id": "waapi.support", "source": "references/browser-support.md", "sections": ["WAAPI"], "load_when": ["implementation"]}
+  ],
+  "workflows": ["implementation", "code-review", "debugging"],
+  "example_tags": ["waapi"],
+  "evidence_requirements": ["browser support policy"],
+  "implementation_blockers": [],
+  "readiness_requirements": ["animation cancelled on teardown", "reduced-motion handled"]
+}
