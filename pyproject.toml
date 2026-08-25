@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aip"
+version = "2.0.0"
+description = "Animation Intelligence Platform — deterministic context-selection and orchestration layer"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+readme = "README.md"
+
+[project.optional-dependencies]
+# Live LLM backend. NOT installed by default; live integration is blocked until
+# the SDK and credentials are approved. See docs/migration.md.
+fable = ["anthropic>=0.30"]
+dev = []          # stdlib-only: unittest, no external dev deps required
+
+[tool.setuptools]
+packages = ["aip", "aip.backends"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,7 +1,12 @@
 # Migration: Monolithic Skills → Modular Platform
 
-## Status
-The modular layer is **additive**. Nothing in `skills/`, `references/`, `adapters/`, or `.github/` was modified. Both paths work today.
+## Status (v2 — production-completion pass)
+Additive. Canonical skills untouched. Two orchestrators exist:
+- `aip/pipeline.py` — v1 (legacy comparison path, unchanged)
+- `aip/orchestrator.py` — v2 operational path: hybrid multi-signal router, guided clarification, executable retrieval, structured Fable backend contract, structured validators, JSONL traces, validated flag combinations, CLI consumer (`python3 -m aip`).
+
+## Fable 5 live integration — BLOCKED
+No SDK installed and no credentials configured in this repository. Implemented instead: full offline adapter contract (`aip/backends/fable.py`) with refusal-as-application-state, bounded transient retry, timeout, fallback policy, provider usage capture, redaction, and a mock transport with contract tests. **Activation path:** `pip install .[fable]`, set credentials, implement a `Transport` from the verified SDK, pass it to `FableBackend`. Do not claim live integration until then. Model-in-the-loop equivalence (Workstream 18) is likewise blocked pending live access; the harness comparison currently covers routing/safety/token estimates only.
 
 ## Release gate (must all hold before modular becomes the default production path)
 - [x] Safety decisions equivalent or better — scenario suite compares legacy vs modular routing; gate PASS (15/15)
