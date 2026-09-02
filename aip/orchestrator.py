@@ -1,14 +1,14 @@
-"""Orchestrator v2 (Workstreams 11–14, 20, 21).
+"""Orchestrator v2.
 
 Real mode behaviour (guided returns NeedsClarification), stable/dynamic prompt
 split with deterministic prefix hash, executable retrieval, structured backend,
-JSONL observability, validated feature-flag combinations. The v1 pipeline
-(`aip.pipeline`) remains untouched as the legacy path.
+JSONL observability, validated feature-flag combinations.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -19,24 +19,36 @@ from .inspector import inspect_project
 from .hybrid_router import route, clarification_from
 from .assembler import assemble_context, ContextCompressor
 from .retrieval import RetrievalStore, RetrievalError
-from .validators2 import run_pipeline
+from .validators import run_pipeline
 from .schema_check import validate_all
 from .types import (NeedsClarification, SpecialistRequest, SpecialistResponse,
                     StopReason, TraceRecord)
-from .backends.fable import FableBackend
+from .gateway import ModelGateway, ProviderRegistry
 
 ROOT = Path(__file__).resolve().parent.parent
-TRACE_PATH = ROOT / "docs" / "analysis" / "traces.jsonl"
+
+
+def _trace_path() -> Path:
+    """Traces live in the user's cache dir, never in their working tree."""
+    if override := os.environ.get("AIP_TRACE_PATH"):
+        return Path(override).expanduser()
+    base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+    return base / "aip" / "traces.jsonl"
+
+
+TRACE_PATH = _trace_path()
+
+_FLAG_ALIASES: dict[str, str] = {}
 
 VALID_FLAG_SETS = {
     frozenset({"legacy_full_skill"}),
     frozenset({"modular_context"}),
-    frozenset({"modular_context", "modular_context_with_fable"}),
+    frozenset({"modular_context", "modular_context_with_model"}),
     frozenset({"modular_context", "modular_context_with_retrieval"}),
-    frozenset({"modular_context", "modular_context_with_fable",
+    frozenset({"modular_context", "modular_context_with_model",
                "modular_context_with_retrieval"}),
     frozenset({"modular_context", "modular_context_with_compression"}),
-    frozenset({"modular_context", "modular_context_with_fable",
+    frozenset({"modular_context", "modular_context_with_model",
                "modular_context_with_retrieval", "modular_context_with_compression"}),
 }
 
@@ -45,7 +57,12 @@ class FlagError(ValueError):
     pass
 
 
+def _normalise_flags(flags: dict[str, bool]) -> dict[str, bool]:
+    return {_FLAG_ALIASES.get(k, k): v for k, v in flags.items()}
+
+
 def _check_flags(flags: dict[str, bool]) -> None:
+    flags = _normalise_flags(flags)
     active = frozenset(k for k, v in flags.items() if v and k != "nooa_pilot")
     if active not in VALID_FLAG_SETS:
         raise FlagError(
@@ -58,10 +75,13 @@ def handle(raw_request: str,
            user_mode: str = "beginner",
            clarification_answer: Optional[str] = None,
            flags: Optional[dict[str, bool]] = None,
-           backend: Optional[FableBackend] = None,
+           backend: Optional[Any] = None,          # legacy: object with run_request()
+           gateway: Optional[ModelGateway] = None,  # canonical provider-neutral path
+           provider: Optional[str] = None,
+           selection_policy: str = "fixed_provider",
            compressor: Optional[ContextCompressor] = None,
            retrieval: Optional[RetrievalStore] = None) -> dict[str, Any]:
-    flags = {**{"modular_context": True}, **(flags or {})}
+    flags = _normalise_flags({**{"modular_context": True}, **(flags or {})})
     _check_flags(flags)
     validate_all()  # fail fast on invalid manifests — never assemble from bad config
 
@@ -94,11 +114,17 @@ def handle(raw_request: str,
     pointers_emitted = sum(1 for c in ctx.chunks if c.startswith("[Retrieval pointer"))
     pointers_resolved = 0
 
-    if flags.get("modular_context_with_fable") and backend:
+    selection = None
+    if flags.get("modular_context_with_model") and (gateway or backend):
         req = _build_request(state, ctx)
-        response = backend.run_request(req)
+        if gateway:
+            response, selection = gateway.run(
+                req, workflow=state.selected_workflow or "default",
+                policy=selection_policy, fixed=provider)
+        else:  # deprecated legacy path (backend.run_request)
+            response = backend.run_request(req)
         # Model-in-the-loop retrieval: bounded, audited (Workstream 12).
-        if flags.get("modular_context_with_retrieval"):
+        if flags.get("modular_context_with_retrieval") and response:
             for key in response.retrieval_requests[:5]:
                 try:
                     chunk = retrieval.retrieve(key, reason="specialist request")
@@ -114,6 +140,7 @@ def handle(raw_request: str,
         "status": "refused" if response and response.refusal else "complete",
         "state": state,
         "decision": decision,
+        "selection": selection,
         "manifest": ctx.manifest,
         "response": response,
         "explanation": _explain(state, decision, response, user_mode),

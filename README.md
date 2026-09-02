@@ -1,299 +1,203 @@
-# frontend-animation-agent-skills
+# AIP — Animation Intelligence Platform
 
-> The largest and best-maintained AI skill library for frontend animation development.
+**A zero-config linter for web animation code.** It catches the bugs that ship to
+production: memory leaks, jank, and accessibility violations.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![GitHub Copilot](https://img.shields.io/badge/GitHub%20Copilot-First-blue)](./adapters/github-copilot/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
-
----
-
-## What Is This?
-
-`frontend-animation-agent-skills` is an open-source collection of AI skills, prompts, commands, and agent instructions that teach coding agents how to create, debug, optimize, review, and migrate frontend animations — correctly.
-
-It is not a tutorial library. It is a **knowledge layer** for AI coding agents.
-
-Just as [GSAP Skills](https://github.com/GreenSock/gsap-skills) teaches AI how to use GSAP, this repository teaches AI:
-
-- Which animation library to use (and when to use none)
-- How to implement animations correctly
-- How to optimize animations for performance
-- How to debug animations
-- How to review animation code
-- How to migrate between animation frameworks
-- How to follow accessibility standards (WCAG 2.2)
-
----
-
-## Supported Libraries
-
-| Library | Skill | Status |
-|---|---|---|
-| **GSAP** | [`skills/gsap`](./skills/gsap/) | ✅ MVP |
-| **Motion for React** | [`skills/motion-react`](./skills/motion-react/) | ✅ MVP |
-| **Three.js** | [`skills/threejs`](./skills/threejs/) | ✅ MVP |
-| **Rive** | [`skills/rive`](./skills/rive/) | ✅ Stable |
-| **Anime.js** | [`skills/animejs`](./skills/animejs/) | ✅ Stable |
-| **Motion** | [`skills/motion`](./skills/motion/) | ✅ Stable |
-| **Lottie** | [`skills/lottie`](./skills/lottie/) | ✅ Stable |
-
----
-
-## Supported AI Agents
-
-| Agent | Adapter | Status |
-|---|---|---|
-| **GitHub Copilot** | [`adapters/github-copilot`](./adapters/github-copilot/) | ✅ Primary |
-| **Claude** | [`adapters/claude`](./adapters/claude/) | ✅ Stable |
-| **Cursor** | [`adapters/cursor`](./adapters/cursor/) | ✅ Stable |
-| **Codex** | [`adapters/codex`](./adapters/codex/) | ✅ Stable |
-| **Gemini** | [`adapters/gemini`](./adapters/gemini/) | ✅ Stable |
-| **Kimi** | [`adapters/generic`](./adapters/generic/) | ✅ Generic |
-| **Qwen** | [`adapters/generic`](./adapters/generic/) | ✅ Generic |
-| **Windsurf** | [`adapters/generic`](./adapters/generic/) | ✅ Generic |
-
----
-
-## Core Philosophy
-
-> Do not teach one animation library. Teach animation engineering.
-
-Libraries are implementation details. The AI should learn:
-
-```
-Requirement → Decision → Library → Implementation → Review → Optimisation
-```
-
-Not:
-
-```
-Requirement → GSAP
-```
-
-The animation router always asks: **Can CSS solve it first?**
-
----
-
-## Quick Install
-
-### GitHub Copilot (Recommended)
-
-Copy `.github/copilot-instructions.md` to your project root:
+No AI. No network. No API keys. No config file.
 
 ```bash
-curl -O https://raw.githubusercontent.com/your-org/frontend-animation-agent-skills/main/.github/copilot-instructions.md
+python -m aip check src/
 ```
 
-Or clone the full repository into your project:
+```
+bad-animations.jsx
+    13:5  error    ScrollTrigger created but never reverted or killed. This leaks
+                   on unmount and duplicates on remount.            leak/gsap-no-revert
+                   → Return () => ctx.revert() from your effect.
+    33:7  error    requestAnimationFrame loop with no cancelAnimationFrame. The
+                   loop keeps running after the component unmounts. leak/raf-not-cancelled
+                   → Store the frame id and cancelAnimationFrame(id) on cleanup.
+
+13 problems (10 errors, 3 warnings)
+4 files scanned.
+```
+
+Every finding comes with the fix on the `→` line, not just the complaint.
+
+Exit code is `1` when there are errors, so it drops straight into CI.
+
+---
+
+## Why
+
+Animation bugs are uniquely bad. They don't throw. Tests pass. Types check.
+The page just gets slower every time a user navigates, or it makes someone with
+a vestibular disorder physically sick.
+
+Existing tooling doesn't help:
+
+- ESLint doesn't know a GSAP timeline needs `revert()`.
+- Lighthouse tells you the page is slow, not which `@keyframes` did it.
+- Type checkers can't see that your `IntersectionObserver` outlives the component.
+
+AIP encodes the rules an experienced animation engineer applies in code review,
+and runs them in milliseconds.
+
+---
+
+## Install
+
+Requires Python 3.10+. No dependencies.
 
 ```bash
-git clone https://github.com/your-org/frontend-animation-agent-skills.git .animation-skills
+git clone https://github.com/your-org/frontend-animation-agent-skills
+cd frontend-animation-agent-skills
+python -m aip check .
 ```
 
-Then reference in your `.github/copilot-instructions.md`:
+A `pip install aip` / `npx aip` distribution is on the roadmap (see
+[`BUILD_PLAN.md`](BUILD_PLAN.md)).
 
-```markdown
-@file .animation-skills/.github/copilot-instructions.md
+---
+
+## Usage
+
+```bash
+python -m aip check <path>            # lint a file or directory
+python -m aip check src/ --fix        # apply safe mechanical fixes
+python -m aip check src/ --format json
 ```
 
-### Claude
+`--format` accepts `human` (default), `json`, `sarif`, and `github`.
 
-Copy `adapters/claude/CLAUDE.md` to your project as `CLAUDE.md`.
+- `json` — for scripts and agents.
+- `sarif` — upload to GitHub code scanning.
+- `github` — emits `::error file=...` workflow annotations.
 
-### Cursor
+Scanned extensions: `.css`, `.scss`, `.sass`, `.less`, `.js`, `.jsx`, `.ts`,
+`.tsx`, `.mjs`, `.cjs`. `node_modules`, build output, and dotfiles are skipped.
 
-Copy `adapters/cursor/.cursorrules` to your project root as `.cursorrules`.
+### `--fix`
 
-### Other Agents
-
-See [`adapters/generic/AGENTS.md`](./adapters/generic/AGENTS.md) for a universal format compatible with any AI coding agent.
-
----
-
-## Commands
-
-Once installed, use these slash commands in your AI coding agent:
-
-| Command | Description |
-|---|---|
-| `/animation` | Analyze requirements and recommend the best animation solution |
-| `/animate` | Generate animation implementation for your use case |
-| `/fix-animation` | Debug animation issues and explain the root cause |
-| `/review-animation` | Review architecture, accessibility, and quality |
-| `/optimize-animation` | Improve performance and reduce bundle size |
-| `/migrate-animation` | Convert between animation libraries |
+Only applies changes that cannot alter behaviour — e.g. rewriting an animated
+`left`/`top` to a `transform`, or appending a `prefers-reduced-motion` block.
+Anything requiring judgement (where to put a cleanup function) is reported, never
+rewritten.
 
 ---
 
-## Repository Structure
+## Rules
 
-```
-frontend-animation-agent-skills/
-│
-├── .github/
-│   ├── copilot-instructions.md     # GitHub Copilot global instructions
-│   ├── prompts/                    # Reusable prompt files (.prompt.md)
-│   ├── workflows/                  # CI/CD for skill validation
-│   ├── ISSUE_TEMPLATE/             # Bug reports, skill requests
-│   └── pull_request_template.md
-│
-├── skills/                         # Core animation skill definitions
-│   ├── animation-router/           # Library selection logic
-│   ├── gsap/
-│   ├── motion-react/
-│   ├── threejs/
-│   ├── rive/
-│   ├── animejs/
-│   ├── motion/
-│   ├── lottie/
-│   ├── animation-debugging/
-│   ├── animation-performance/
-│   ├── animation-accessibility/
-│   ├── animation-migration/
-│   └── animation-code-review/
-│
-├── references/                     # Decision matrices and reference docs
-│   ├── library-decision-matrix.md
-│   ├── accessibility.md
-│   ├── performance.md
-│   ├── browser-support.md
-│   └── security.md
-│
-├── integrations/                   # Framework-specific integration guides
-│   ├── react/
-│   ├── nextjs/
-│   ├── vue/
-│   ├── nuxt/
-│   ├── svelte/
-│   ├── angular/
-│   └── vanilla-js/
-│
-├── adapters/                       # Agent-specific adapter files
-│   ├── github-copilot/
-│   ├── claude/
-│   ├── cursor/
-│   ├── codex/
-│   ├── gemini/
-│   └── generic/
-│
-├── examples/                       # Working code examples
-│   ├── basic/
-│   ├── framework-specific/
-│   └── real-world-patterns/
-│
-├── evals/                          # Evaluation cases and rubrics
-│   ├── cases/
-│   ├── expected/
-│   └── rubrics/
-│
-├── docs/                           # Documentation
-│   ├── architecture.md
-│   ├── installation.md
-│   ├── compatibility.md
-│   └── skill-authoring.md
-│
-├── AGENTS.md                       # Agent instructions (universal)
-├── CONTRIBUTING.md
-├── SECURITY.md
-├── CHANGELOG.md
-├── LICENSE
-└── README.md
+### Memory leaks — `leak/*`
+
+| Rule | Catches |
+| --- | --- |
+| `leak/gsap-no-revert` | GSAP timeline/tween created in an effect with no `revert()` or `kill()` |
+| `leak/raf-not-cancelled` | `requestAnimationFrame` loop with no `cancelAnimationFrame` |
+| `leak/observer-not-disconnected` | `IntersectionObserver`/`ResizeObserver`/`MutationObserver` never disconnected |
+| `leak/webgl-not-disposed` | Three.js geometries/materials/textures never `dispose()`d |
+| `leak/listener-not-removed` | `addEventListener` in an effect with no matching removal |
+
+These are errors. Each one is a component that permanently retains memory after
+unmount, and they compound across navigations in an SPA.
+
+### Accessibility — `a11y/*`
+
+| Rule | Catches |
+| --- | --- |
+| `a11y/no-reduced-motion-fallback` | Animation with no `prefers-reduced-motion` guard |
+| `a11y/no-rapid-flash` | Flashing faster than 3Hz — a seizure risk (WCAG 2.3.1) |
+| `a11y/infinite-no-pause` | `infinite` animation longer than 5s with no pause control (WCAG 2.2.2) |
+
+### Performance — `perf/*`
+
+| Rule | Catches |
+| --- | --- |
+| `perf/no-layout-property` | Animating `left`, `top`, `width`, `height`, `margin` — forces layout on every frame |
+| `perf/no-layout-thrash` | Reading `offsetWidth`/`getBoundingClientRect` inside a rAF loop that also writes |
+
+### Other
+
+| Rule | Catches |
+| --- | --- |
+| `sec/untrusted-asset` | Lottie/Rive assets loaded from an unpinned third-party origin |
+| `arch/over-engineered` | A heavy animation library imported for something CSS does natively |
+
+---
+
+## CI
+
+```yaml
+- uses: actions/setup-python@v5
+  with:
+    python-version: '3.12'
+- run: python -m aip check src/ --format github
 ```
 
+Failing the build on `leak/*` and `a11y/*` is the point. Those are the classes of
+bug that are effectively invisible in review.
+
 ---
 
-## Animation Router Decision Tree
+## For AI agents
+
+`aip check --format json` gives an agent a precise, structured critique of code
+it just wrote, with no model call. The intended loop:
+
+1. Agent writes animation code.
+2. Agent runs `python -m aip check <file> --format json`.
+3. Agent reads `rule`, `message`, and `line` and repairs its own output.
+
+Each finding includes the fix, not just the complaint. One-command agent wiring
+(`aip init`) is the next milestone.
+
+The `skills/` directory holds authoring guidance for animation libraries (GSAP,
+Motion, Three.js, Lottie, Rive, Anime.js) intended to be loaded as agent context.
+
+---
+
+## What this is not
+
+Being direct about scope, because the repo previously overpromised:
+
+- **Not an AI code generator.** `aip run` exists but routes requests against a
+  mock provider. Treat it as experimental.
+- **Not a runtime profiler.** It reads source code. It never executes your app,
+  so it cannot measure actual frame rate.
+- **Not a replacement for testing on real hardware.** It catches known-bad
+  patterns, not everything.
+
+The linter is the product. Everything else is in progress.
+
+---
+
+## Repository layout
 
 ```
-User Request
-    │
-    ▼
-Can CSS solve it?
-    │
-   YES ──────────────────────────────▶ Use CSS (no library)
-    │
-    NO
-    │
-    ▼
-Is it 3D / WebGL?
-    │
-   YES ──────────────────────────────▶ Three.js
-    │
-    NO
-    │
-    ▼
-Is it a designer asset (Lottie/Rive file)?
-    │
-   YES → Is it interactive/stateful? ▶ Rive
-    │    NO ─────────────────────────▶ Lottie
-    │
-    NO
-    │
-    ▼
-Is it scroll-driven or timeline-complex?
-    │
-   YES ──────────────────────────────▶ GSAP
-    │
-    NO
-    │
-    ▼
-Is it React-based with UI state?
-    │
-   YES ──────────────────────────────▶ Motion for React
-    │
-    NO
-    │
-    ▼
-Is it lightweight / vanilla?
-    │
-   YES ──────────────────────────────▶ Anime.js or Motion
-    │
-    NO ───────────────────────────────▶ GSAP (default complex)
+aip/check.py       the linter — rules, autofix, output formats
+aip/cli.py         command line entry point
+skills/            per-library animation guidance for agents
+references/        accessibility, performance, browser support notes
+manifests/         library capability metadata
+tests/             linter tests + good/bad fixtures
+scripts/smoke.py   cold-start sanity check
 ```
 
----
+## Development
 
-## Quality Standards
+```bash
+python -m unittest discover tests -v   # test suite (no dependencies)
+python scripts/smoke.py                # cold-start sanity check
+python -m aip check tests/fixtures/    # see the linter fire
+```
 
-Every skill guarantees:
+Adding a rule: write it in `aip/check.py`, register it in `CSS_RULES` or
+`JS_RULES`, then add a positive case to `tests/fixtures/bad-animations.*` **and**
+a negative case to `tests/fixtures/good-animations.*`. False positives are worse
+than missed bugs — a noisy linter gets disabled.
 
-- ✅ Accessibility rules (WCAG 2.2, `prefers-reduced-motion`)
-- ✅ Performance rules (60fps, GPU compositing, no layout thrash)
-- ✅ Cleanup rules (event listeners, RAF cancellation, unmount handling)
-- ✅ Browser support guidance
-- ✅ Validation checklist
-- ✅ Common mistakes catalogue
-- ✅ Security considerations
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to add new skills, fix bugs, or improve existing content.
-
----
-
-## Security
-
-See [SECURITY.md](./SECURITY.md) for our security policy.
-
-Core rules:
-- Never run remote scripts
-- Never trust generated code without review
-- Never inject untrusted SVGs
-- Treat all user input as untrusted
-
----
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`BUILD_PLAN.md`](BUILD_PLAN.md).
 
 ## License
 
-[MIT](./LICENSE) — free to use in any project, commercial or open-source.
-
----
-
-## Acknowledgements
-
-Inspired by the excellent work of the [GSAP](https://greensock.com/gsap/) team, [Motion](https://motion.dev/) team, and the broader open-source animation community.
-
-Built for developers who believe AI should be a multiplier, not a shortcut.
+See [`LICENSE`](LICENSE).

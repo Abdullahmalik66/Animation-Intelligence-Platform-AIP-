@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# AIP runtime artefacts — never commit, never write into a user's repo
+docs/analysis/traces.jsonl
+.aip-cache/
+
+# Node (npx shim)
+node_modules/
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+*.swp
+
+# Backups
+*.bak

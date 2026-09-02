@@ -113,14 +113,26 @@ class SpecialistResponse:
     structured_output: Optional[dict[str, Any]] = None
     tool_calls: list[ToolCallRecord] = field(default_factory=list)
     usage: UsageMetrics = field(default_factory=UsageMetrics)
+    provider: Optional[str] = None            # provider-neutral identity
+    model: Optional[str] = None
     provider_request_id: Optional[str] = None
     stop_reason: StopReason = StopReason.END_TURN
     refusal: bool = False
+    refusal_record: Optional[dict[str, Any]] = None   # canonical refusal (category, user_safe_message, retryable, fallback_allowed)
     fallback_used: bool = False
+    retry_count: int = 0
     retrieval_requests: list[str] = field(default_factory=list)
     resource_inventory: list[dict[str, Any]] = field(default_factory=list)
     accessibility_declaration: Optional[dict[str, Any]] = None
     error: Optional[str] = None
+    raw_metadata: dict[str, Any] = field(default_factory=dict)  # isolated, redacted provider payload
+
+
+# Provider-neutral aliases (canonical names; Specialist* retained for compatibility).
+ModelRequest = SpecialistRequest
+ModelResponse = SpecialistResponse
+ModelUsage = UsageMetrics
+ModelToolCall = ToolCallRecord
 
 
 @dataclass

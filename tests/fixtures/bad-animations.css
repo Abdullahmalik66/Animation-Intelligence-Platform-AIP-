@@ -1,0 +1,31 @@
+/* Deliberately broken animation CSS — used by `aip check` tests and the demo.
+   Do not "fix" this file; it is the fixture. */
+
+.card {
+  transition: height 0.3s ease, opacity 0.3s ease;
+}
+
+.panel {
+  transition: margin-top 200ms;
+}
+
+@keyframes grow {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+.spinner {
+  animation: flash 100ms infinite;
+}
+
+@keyframes flash {
+  0%   { opacity: 1; }
+  50%  { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.banner {
+  animation-name: slide;
+  animation-iteration-count: infinite;
+  animation-duration: 2s;
+}

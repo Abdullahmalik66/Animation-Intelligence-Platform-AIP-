@@ -1,5 +1,5 @@
 """Tests for the v2 operational layers: schema enforcement, section fidelity,
-retrieval, hybrid router, expanded inspector, validators2, Fable backend
+retrieval, hybrid router, expanded inspector, validators
 contract, orchestrator modes and flags."""
 from __future__ import annotations
 
@@ -16,9 +16,8 @@ from aip.retrieval import RetrievalStore, RetrievalError  # noqa: E402
 from aip.state import AnimationProjectState  # noqa: E402
 from aip.inspector import inspect_project  # noqa: E402
 from aip.hybrid_router import route, extract_signals  # noqa: E402
-from aip.validators2 import run_pipeline, performance_validator  # noqa: E402
+from aip.validators import run_pipeline, performance_validator  # noqa: E402
 from aip.types import Readiness, Confidence, StopReason, SpecialistRequest  # noqa: E402
-from aip.backends.fable import FableBackend, mock_transport  # noqa: E402
 from aip.orchestrator import handle, _check_flags, FlagError, _build_request  # noqa: E402
 from aip.assembler import assemble_context  # noqa: E402
 
@@ -238,49 +237,6 @@ class TestValidators2(unittest.TestCase):
         self.assertEqual(s.confidence, Confidence.UNKNOWN.value)
 
 
-class TestFableBackend(unittest.TestCase):
-    def _req(self):
-        return SpecialistRequest(request_id="r1", stable_prefix="GOV",
-                                 dynamic_context="ctx", state_projection={},
-                                 user_request="u")
-
-    def test_blocked_without_transport(self):
-        resp = FableBackend().run_request(self._req())
-        self.assertEqual(resp.stop_reason, StopReason.ERROR)
-        self.assertIn("BLOCKED", resp.error)
-
-    def test_success_and_usage_capture(self):
-        resp = FableBackend(transport=mock_transport()).run_request(self._req())
-        self.assertEqual(resp.usage.method, "provider_reported")
-        self.assertEqual(resp.stop_reason, StopReason.END_TURN)
-        self.assertTrue(resp.resource_inventory)
-
-    def test_refusal_is_application_state_no_retry(self):
-        calls = []
-        def transport(p):
-            calls.append(1)
-            return {"content": "", "stop_reason": "refusal"}
-        resp = FableBackend(transport=transport).run_request(self._req())
-        self.assertTrue(resp.refusal)
-        self.assertEqual(len(calls), 1)  # never retried
-
-    def test_transient_retry_then_success(self):
-        state = {"n": 0}
-        def transport(p):
-            state["n"] += 1
-            if state["n"] < 3:
-                raise ConnectionError("blip")
-            return mock_transport()(p)
-        resp = FableBackend(transport=transport).run_request(self._req())
-        self.assertEqual(resp.usage.model_calls, 3)
-        self.assertFalse(resp.refusal)
-
-    def test_timeout_exhaustion(self):
-        def transport(p):
-            raise TimeoutError()
-        resp = FableBackend(transport=transport).run_request(self._req())
-        self.assertEqual(resp.stop_reason, StopReason.TIMEOUT)
-
 
 class TestOrchestrator(unittest.TestCase):
     def test_invalid_flag_combo_fails_clearly(self):
@@ -315,16 +271,6 @@ class TestOrchestrator(unittest.TestCase):
             self.assertIn("routing_decision", r["explanation"])
             self.assertIn("context_manifest", r["explanation"])
 
-    def test_fable_end_to_end_with_mock(self):
-        with tempfile.TemporaryDirectory() as td:
-            make_project(td)
-            r = handle("use gsap to fade in the hero", project_dir=td,
-                       flags={"modular_context": True, "modular_context_with_fable": True},
-                       backend=FableBackend(transport=mock_transport()))
-            self.assertEqual(r["status"], "complete")
-            self.assertEqual(r["response"].usage.method, "provider_reported")
-            own = next(v for v in r["state"].validation_results if v["validator"] == "ownership")
-            self.assertTrue(own["passed"])
 
     def test_stable_prefix_hash_deterministic(self):
         s = AnimationProjectState(raw_user_request="x", selected_technology="gsap",

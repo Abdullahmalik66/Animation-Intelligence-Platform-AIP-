@@ -10,10 +10,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from aip.state import AnimationProjectState  # noqa: E402
 from aip.inspector import inspect_project, installed_animation_technologies  # noqa: E402
-from aip.router import translate_intent, route_stage1_technology, route_stage2_workflow  # noqa: E402
 from aip.assembler import assemble_context, load_governance_rules, ContextCompressor  # noqa: E402
 from aip.validators import run_pipeline  # noqa: E402
-from aip.pipeline import handle_request  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -70,28 +68,6 @@ class TestInspector(unittest.TestCase):
         self.assertTrue(any("package.json" in u for u in s.unknowns))
 
 
-class TestRouting(unittest.TestCase):
-    def _route(self, req, **kw):
-        s = AnimationProjectState(raw_user_request=req, **kw)
-        translate_intent(s)
-        route_stage1_technology(s)
-        route_stage2_workflow(s)
-        return s
-
-    def test_hover_routes_to_css(self):
-        self.assertEqual(self._route("grow on hover").selected_technology, "css")
-
-    def test_scroll_needs_disambiguation(self):
-        s = self._route("cards move as I scroll")
-        self.assertEqual(s.selected_technology, "insufficient-evidence")
-        self.assertTrue(s.unknowns)
-
-    def test_interactive_asset_routes_to_rive(self):
-        self.assertEqual(self._route("interactive character that reacts to cursor").selected_technology, "rive")
-
-    def test_debug_workflow(self):
-        self.assertEqual(self._route("fix my broken animation").selected_workflow, "debugging")
-
 
 class TestAssembler(unittest.TestCase):
     def test_examples_excluded_for_review(self):
@@ -131,10 +107,6 @@ class TestValidatorsAndModes(unittest.TestCase):
         self.assertEqual(s.implementation_readiness, "Insufficient Evidence")
         self.assertEqual(s.confidence, "Unknown")
 
-    def test_beginner_explanation_exposes_unknowns(self):
-        r = handle_request("cards move as I scroll")
-        self.assertIn("Unclear", r["explanation"])
-        self.assertIn("What I understood", r["explanation"])
 
     def test_state_projection_hides_internal_fields(self):
         s = AnimationProjectState(raw_user_request="x")
